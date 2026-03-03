@@ -8,7 +8,6 @@ import dev.nextftc.control.builder.controlSystem
 import dev.nextftc.core.subsystems.Subsystem
 import dev.nextftc.hardware.impl.MotorEx
 import dev.nextftc.ftc.ActiveOpMode.telemetry
-import org.firstinspires.ftc.teamcode.FieldConstants
 import org.firstinspires.ftc.teamcode.FieldConstants.BLUE_GOAL_X
 import org.firstinspires.ftc.teamcode.FieldConstants.GOAL_Y
 import org.firstinspires.ftc.teamcode.FieldConstants.RED_GOAL_X
@@ -39,11 +38,17 @@ object Turret : Subsystem {
     @JvmField var alignmentTolerance: Double = 2.0
     @JvmField var sotmLookahead: Double = 0.0
 
+    // How many degrees each nudge call shifts the offset
+    @JvmField var nudgeStepDegrees: Double = 1.0
+
     var motor = MotorEx("turret")
     var currentState = State.IDLE
     var manualPower = 0.0
     var targetYaw = 0.0
     var isLocked = false
+
+    // Offset applied on top of the calculated lock angle — nudge this to trim aim
+    var angleOffsetRad: Double = 0.0
 
     private val velTimer = ElapsedTime()
     private var lastRobotHeading = 0.0
@@ -52,14 +57,8 @@ object Turret : Subsystem {
     enum class Alliance { RED, BLUE }
     var alliance = Alliance.BLUE
 
-    // ==================== GOAL DATA ====================
-    /** Get goal X based on alliance */
     val goalX: Double get() = if (alliance == Alliance.RED) RED_GOAL_X else BLUE_GOAL_X
-
-    /** Goal Y (same for both alliances) */
     val goalY = GOAL_Y
-
-
 
     private val MIN_ANGLE = Math.toRadians(TURRET_MIN_ANGLE)
     private val MAX_ANGLE = Math.toRadians(TURRET_MAX_ANGLE)
@@ -79,6 +78,7 @@ object Turret : Subsystem {
         robotAngularVelocity = 0.0
         controller = buildController()
         targetYaw = getYaw()
+        angleOffsetRad = 0.0
     }
 
     override fun periodic() {
@@ -97,6 +97,7 @@ object Turret : Subsystem {
         telemetry.addData("Turret/Yaw", "%.2f°".format(Math.toDegrees(getYaw())))
         telemetry.addData("Turret/Target", "%.2f°".format(Math.toDegrees(targetYaw)))
         telemetry.addData("Turret/Locked", if (isLocked) "YES" else "NO")
+        telemetry.addData("Turret/Offset", "%.2f°".format(Math.toDegrees(angleOffsetRad)))
         telemetry.addData("Turret/RobotVel", "%.2f°/s".format(Math.toDegrees(robotAngularVelocity)))
         telemetry.addData("Turret/SOTM", "lookahead=%.2fs".format(sotmLookahead))
         telemetry.addData("Turret/Power", motor.power)
@@ -115,20 +116,17 @@ object Turret : Subsystem {
     fun runLockedControl() {
         if (!Drive.poseValid) return
 
-        //val predictedX = Drive.currentX + Drive.velocityX * sotmLookahead
-        //val predictedY = Drive.currentY + Drive.velocityY * sotmLookahead
-
         val deltaX = goalX - currentX
         val deltaY = goalY - currentY
         val fieldAngleToGoal = atan2(deltaY, deltaX)
 
         val robotHeadingRad = Drive.currentHeading
-        val rawTarget = normalizeAngle(fieldAngleToGoal - robotHeadingRad)
+        val rawTarget = normalizeAngle(fieldAngleToGoal - robotHeadingRad + angleOffsetRad)
 
         applyControl(rawTarget, -robotAngularVelocity)
     }
 
-     fun runResetControl() {
+    fun runResetControl() {
         val currentYaw = getYaw()
         val error = normalizeAngle(0.0 - currentYaw)
         val errorDeg = Math.toDegrees(abs(error))
@@ -167,6 +165,19 @@ object Turret : Subsystem {
         robotAngularVelocity = deltaHeading / dt
         lastRobotHeading = currentHeading
         velTimer.reset()
+    }
+
+    // Call these from your teleop to trim the aim while locked
+    fun nudgeLeft() {
+        angleOffsetRad += Math.toRadians(nudgeStepDegrees)
+    }
+
+    fun nudgeRight() {
+        angleOffsetRad -= Math.toRadians(nudgeStepDegrees)
+    }
+
+    fun clearOffset() {
+        angleOffsetRad = 0.0
     }
 
     fun lock() {
