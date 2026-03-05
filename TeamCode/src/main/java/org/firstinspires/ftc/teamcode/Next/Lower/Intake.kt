@@ -24,14 +24,18 @@ object Intake : Subsystem {
 
     override fun initialize() {
         intakeMotor.motor.direction = DcMotorSimple.Direction.FORWARD
-        stop()
+        // Set hardware directly — don't invoke the InstantCommand val
+        intakeMotor.power = 0.0
+        intakeState = IntakeState.STOPPED
     }
 
-    internal fun run(iPow: Double) {
+    /** Direct power control — used by Commands.kt and onStop() */
+    fun run(iPow: Double) {
         intakeMotor.power = iPow
     }
 
-    val run = InstantCommand {
+    /** InstantCommands for binding system (gamepad triggers) */
+    val intake = InstantCommand {
         intakeMotor.power = IntakeConstants.INTAKE_POWER
         intakeState = IntakeState.INTAKING
     }

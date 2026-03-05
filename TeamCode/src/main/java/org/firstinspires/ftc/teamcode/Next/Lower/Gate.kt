@@ -8,28 +8,28 @@ import org.firstinspires.ftc.teamcode.GateConstants
 /**
  * Gate Subsystem
  * Simple open/close control for shooting gate
+ *
+ * Usage:
+ *   Bindings:  Gate.open / Gate.close  (InstantCommand vals)
+ *   Direct:    Gate.setPosition(GateConstants.GATE_OPEN)
+ *
+ * NOTE: Previously had both `val open` and `fun open()` — this is a
+ * Kotlin naming collision. Functions removed; use setPosition() for
+ * direct calls and the vals for command bindings.
  */
 object Gate : Subsystem {
     private var gateServo = ServoEx("gate")
 
     override fun initialize() {}
 
-    internal fun setPosition(pos: Double) {
+    /** Direct servo control — use this from Commands.kt and onStop() */
+    fun setPosition(pos: Double) {
         gateServo.position = pos
     }
 
+    /** InstantCommand for binding system (e.g. gamepad cross button) */
     val open = InstantCommand { setPosition(GateConstants.GATE_OPEN) }
     val close = InstantCommand { setPosition(GateConstants.GATE_CLOSED) }
 
-    fun open() {
-        setPosition(GateConstants.GATE_OPEN)
-    }
-
-    fun close() {
-        setPosition(GateConstants.GATE_CLOSED)
-    }
-
-    override fun periodic() {
-        // No periodic updates needed for simple servo
-    }
+    override fun periodic() {}
 }

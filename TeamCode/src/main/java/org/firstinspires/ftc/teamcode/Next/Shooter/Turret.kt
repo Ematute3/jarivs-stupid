@@ -8,9 +8,7 @@ import dev.nextftc.control.builder.controlSystem
 import dev.nextftc.core.subsystems.Subsystem
 import dev.nextftc.hardware.impl.MotorEx
 import dev.nextftc.ftc.ActiveOpMode.telemetry
-import org.firstinspires.ftc.teamcode.FieldConstants.BLUE_GOAL_X
-import org.firstinspires.ftc.teamcode.FieldConstants.GOAL_Y
-import org.firstinspires.ftc.teamcode.FieldConstants.RED_GOAL_X
+import org.firstinspires.ftc.teamcode.AllianceConfig
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.TurretConstants.motorGearTeeth
 import org.firstinspires.ftc.teamcode.TurretConstants.outputGearTeeth
@@ -23,14 +21,13 @@ const val ENCODER_CPR = 4000
 @Configurable
 object Turret : Subsystem {
 
-    // ==================== STATES ====================
     enum class State {
-        IDLE,           // Motor off
-        MANUAL,         // Driver direct control
-        LOCKED,         // Auto-aim at real goal (stationary shooting)
-        LOCKED_EXTERNAL,// Auto-aim at angle provided by AutoAim (SOTM)
-        RESET,          // Moving to center (0 degrees)
-        RESET_TO_GOAL   // Moving to point at goal
+        IDLE,
+        MANUAL,
+        LOCKED,
+        LOCKED_EXTERNAL,
+        RESET,
+        RESET_TO_GOAL
     }
 
     // ==================== TUNABLE ====================
@@ -57,7 +54,6 @@ object Turret : Subsystem {
     var angleOffsetRad: Double = 0.0
 
     // External target angle (set by AutoAim for SOTM)
-    // This is a field-relative angle in radians
     private var externalFieldAngle = 0.0
 
     // ==================== VELOCITY TRACKING ====================
@@ -65,12 +61,9 @@ object Turret : Subsystem {
     private var lastRobotHeading = 0.0
     var robotAngularVelocity = 0.0
 
-    // ==================== ALLIANCE ====================
-    enum class Alliance { RED, BLUE }
-    var alliance = Alliance.BLUE
-
-    val goalX: Double get() = if (alliance == Alliance.RED) RED_GOAL_X else BLUE_GOAL_X
-    val goalY = GOAL_Y
+    // ==================== GOAL (from shared AllianceConfig) ====================
+    private val goalX: Double get() = AllianceConfig.goalX
+    private val goalY: Double get() = AllianceConfig.goalY
 
     private val MIN_ANGLE = Math.toRadians(TURRET_MIN_ANGLE)
     private val MAX_ANGLE = Math.toRadians(TURRET_MAX_ANGLE)
@@ -115,7 +108,6 @@ object Turret : Subsystem {
     override fun periodic() {
         rebuildControllerIfNeeded()
 
-        // Track robot rotation for all auto-aim states
         if (currentState == State.LOCKED || currentState == State.LOCKED_EXTERNAL ||
             currentState == State.RESET_TO_GOAL
         ) {
@@ -131,7 +123,6 @@ object Turret : Subsystem {
             State.RESET_TO_GOAL -> runResetToGoal()
         }
 
-        // Telemetry — NO telemetry.update() here, TeleOp calls it once
         telemetry.addData("Turret/State", currentState.name)
         telemetry.addData("Turret/Yaw", "%.2f°".format(Math.toDegrees(getYaw())))
         telemetry.addData("Turret/Target", "%.2f°".format(Math.toDegrees(targetYaw)))
@@ -152,22 +143,14 @@ object Turret : Subsystem {
         this.targetYaw = clampedTarget
     }
 
-    /**
-     * LOCKED state — Aims at the REAL goal.
-     * Used for stationary shooting (no SOTM).
-     */
+    /** LOCKED — aims at real goal (stationary shooting) */
     private fun runLockedControl() {
         val fieldAngle = atan2(goalY - Drive.currentY, goalX - Drive.currentX)
         val rawTarget = normalizeAngle(fieldAngle - Drive.currentHeading + angleOffsetRad)
         applyControl(rawTarget, -robotAngularVelocity)
     }
 
-    /**
-     * LOCKED_EXTERNAL state — Aims at an angle set by AutoAim.
-     * Used for SOTM. AutoAim computes the field angle to the virtual goal
-     * and passes it via lockToTarget(). This just converts to robot-relative
-     * and applies the PID with rotation compensation.
-     */
+    /** LOCKED_EXTERNAL — aims at angle provided by AutoAim (SOTM) */
     private fun runLockedExternalControl() {
         val rawTarget = normalizeAngle(externalFieldAngle - Drive.currentHeading + angleOffsetRad)
         applyControl(rawTarget, -robotAngularVelocity)
@@ -205,7 +188,7 @@ object Turret : Subsystem {
         applyControl(targetAngle, 0.0)
     }
 
-    // ==================== ANGULAR VELOCITY TRACKING ====================
+    // ==================== ANGULAR VELOCITY ====================
 
     private fun updateRobotAngularVelocity() {
         if (!Drive.poseValid) {
@@ -236,12 +219,7 @@ object Turret : Subsystem {
 
     // ==================== PUBLIC API ====================
 
-    /**
-     * Lock turret to a specific field-relative angle.
-     * Called by AutoAim every loop during SOTM to aim at the virtual goal.
-     *
-     * @param fieldAngleRad The field-relative angle to the virtual goal (radians)
-     */
+    /** Lock turret to a field-relative angle (called by AutoAim for SOTM) */
     fun lockToTarget(fieldAngleRad: Double) {
         externalFieldAngle = fieldAngleRad
         if (currentState != State.LOCKED_EXTERNAL) {
@@ -252,9 +230,7 @@ object Turret : Subsystem {
         }
     }
 
-    /**
-     * Lock turret — auto-aim at real goal (stationary shooting).
-     */
+    /** Lock turret — auto-aim at real goal (stationary shooting) */
     fun lock() {
         lastRobotHeading = Drive.currentHeading
         velTimer.reset()

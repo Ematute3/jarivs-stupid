@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.AutoAim
+package org.firstinspires.ftc.teamcode.Next.AutoAim
 
 import com.bylazar.configurables.annotations.Configurable
 import dev.nextftc.core.subsystems.Subsystem
@@ -10,15 +10,39 @@ import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
 import org.firstinspires.ftc.teamcode.ShooterConstants
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
-import kotlin.math.*
 
-
+/**
+ * Unified AutoAim / SOTM Pipeline
+ *
+ * This is the SINGLE SOURCE OF TRUTH for all aiming during shooting-on-the-move.
+ * When enabled, it controls all three systems from one virtual goal:
+ *
+ *   1. TURRET — aims at virtual goal (compensates for robot translation)
+ *   2. FLYWHEEL — continuous interpolation based on distance to virtual goal
+ *   3. HOOD — continuous interpolation based on distance to virtual goal
+ *
+ * WHEN DISABLED:
+ *   - Turret reverts to aiming at the real goal (stationary LOCKED mode)
+ *   - Flywheel and hood are under manual control (dpad presets)
+ *
+ * VIRTUAL GOAL MATH:
+ *   When robot moves, the ball inherits that velocity at launch.
+ *   To cancel the drift:
+ *     virtualGoal = realGoal - robotVelocity * timeOfFlight * leadGain
+ *   The turret aims at virtualGoal. Flywheel/hood use distance to virtualGoal.
+ *
+ * STATIONARY FALLBACK:
+ *   When robot speed < VELOCITY_THRESHOLD, virtual goal = real goal.
+ *   This prevents noise-induced jitter during still shots.
+ */
 @Configurable
 object AutoAim : Subsystem {
 
     // ==================== STATE ====================
     var enabled = false
         private set
+
+    // Computed values (readable for telemetry / debugging)
     var currentDistanceMeters = 0.0
         private set
     var currentTOF = 0.0

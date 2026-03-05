@@ -9,11 +9,6 @@ import org.firstinspires.ftc.teamcode.HoodConstants
 /**
  * Hood Subsystem
  * Controls shooting angle based on distance to goal
- *
- * PRESETS:
- * - CLOSE: For shots < 1m (near goal)
- * - MID: For shots 1-2m
- * - FAR: For shots > 2m
  */
 object Hood : Subsystem {
     private var hoodServo = ServoEx("hood")
@@ -28,10 +23,12 @@ object Hood : Subsystem {
     var currentPosition = HoodConstants.HOOD_CLOSE
 
     override fun initialize() {
-        close()
+        // Call hardware directly — don't invoke the InstantCommand val
+        setPosition(HoodConstants.HOOD_CLOSE)
+        currentPreset = HoodPreset.CLOSE
     }
 
-    // ==================== PRESETS ====================
+    // ==================== PRESETS (for binding system) ====================
     val close = InstantCommand {
         setPosition(HoodConstants.HOOD_CLOSE)
         currentPreset = HoodPreset.CLOSE
@@ -48,9 +45,6 @@ object Hood : Subsystem {
     }
 
     // ==================== CONTROL ====================
-    /**
-     * Set exact servo position (0-1)
-     */
     fun setPosition(position: Double) {
         val clamped = position.coerceIn(HoodConstants.servoMinPosition, HoodConstants.servoMaxPosition)
         currentPosition = clamped
@@ -58,11 +52,6 @@ object Hood : Subsystem {
     }
 
     // ==================== AUTO AIM HELPER ====================
-    /**
-     * Get hood position for a given distance (called by AutoAim)
-     * @param distanceMeters Distance to goal in meters
-     * @return Servo position (0-1)
-     */
     fun getPositionForDistance(distanceMeters: Double): Double {
         return when {
             distanceMeters < HoodConstants.DISTANCE_CLOSE_THRESHOLD -> HoodConstants.HOOD_CLOSE

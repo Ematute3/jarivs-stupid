@@ -11,42 +11,23 @@ import dev.nextftc.extensions.pedro.PedroDriverControlled
 import dev.nextftc.ftc.Gamepads
 import dev.nextftc.ftc.NextFTCOpMode
 import dev.nextftc.ftc.components.BulkReadComponent
+import org.firstinspires.ftc.teamcode.AllianceConfig
+import org.firstinspires.ftc.teamcode.GateConstants
+import org.firstinspires.ftc.teamcode.HoodConstants
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.Lower.Gate.Gate
 import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
 import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.AutoAim.AutoAim
+import org.firstinspires.ftc.teamcode.Next.AutoAim.AutoAim
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
-/**
- * TeleOp - Blue
- *
- * CONTROLS:
- *   Left Stick: Field-centric drive
- *   Right Stick X: Turn
- *   Right Trigger: Intake
- *   Left Trigger: Reverse intake
- *   Cross (X): Gate open/close
- *   Dpad Up: Manual mid shot (disables auto-aim)
- *   Dpad Down: Manual far shot (disables auto-aim)
- *   Left Bumper: Toggle SOTM auto-aim
- *   Square: Reset pose to (136, 8, 180°)
- *   Triangle: Reset turret to goal
- *   Circle: Clear turret offset
- *   Dpad Left/Right: Nudge turret
- *
- * SOTM (Left Bumper):
- *   When ON: AutoAim controls turret, flywheel, and hood automatically.
- *   When OFF: Manual flywheel/hood via dpad, turret still locked to real goal.
- */
 @TeleOp(name = "TeleOp - Blue", group = "Competition")
 class TeleOpBlue : NextFTCOpMode() {
 
     private val panelsTelemetry = PanelsTelemetry.ftcTelemetry
 
-    // Manual presets (used when AutoAim is OFF)
     private val midVelocity = 1500.0
     private val farVelocity = 1900.0
 
@@ -61,8 +42,8 @@ class TeleOpBlue : NextFTCOpMode() {
     }
 
     override fun onInit() {
-        Turret.alliance = Turret.Alliance.BLUE
-        Drive.alliance = Drive.Alliance.BLUE
+        // Single source of truth — set once, read everywhere
+        AllianceConfig.alliance = AllianceConfig.Alliance.BLUE
         Drive.loadSavedPose()
     }
 
@@ -74,7 +55,6 @@ class TeleOpBlue : NextFTCOpMode() {
             false
         ).schedule()
 
-        // Start with turret locked on real goal
         Turret.lock()
         bindControls()
     }
@@ -82,7 +62,7 @@ class TeleOpBlue : NextFTCOpMode() {
     private fun bindControls() {
         // ========== INTAKE ==========
         Gamepads.gamepad1.rightTrigger.greaterThan(0.1)
-            .whenBecomesTrue(Intake.run)
+            .whenBecomesTrue(Intake.intake)
             .whenBecomesFalse(Intake.stop)
 
         Gamepads.gamepad1.leftTrigger.greaterThan(0.1)
@@ -98,13 +78,15 @@ class TeleOpBlue : NextFTCOpMode() {
         Gamepads.gamepad1.dpadUp.whenBecomesTrue {
             AutoAim.disable()
             FlyWheel.setVelocity(midVelocity)
-            Hood.mid()
+            Hood.setPosition(HoodConstants.HOOD_MID)
+            Hood.currentPreset = Hood.HoodPreset.MID
         }
 
         Gamepads.gamepad1.dpadDown.whenBecomesTrue {
             AutoAim.disable()
             FlyWheel.setVelocity(farVelocity)
-            Hood.far()
+            Hood.setPosition(HoodConstants.HOOD_FAR)
+            Hood.currentPreset = Hood.HoodPreset.FAR
         }
 
         // ========== TURRET NUDGE ==========
@@ -133,17 +115,16 @@ class TeleOpBlue : NextFTCOpMode() {
     }
 
     override fun onUpdate() {
-        // Drive.periodic() handles update(). AutoAim.periodic() handles SOTM.
-        // Nothing needed here — subsystem periodic() calls do all the work.
         updateTelemetry()
     }
 
     override fun onStop() {
+        // Call hardware directly — scheduled commands won't run after stop
         AutoAim.disable()
-        Intake.stop()
-        Gate.close()
-        Hood.close()
-        FlyWheel.stop()
+        Intake.run(0.0)
+        Gate.setPosition(GateConstants.GATE_CLOSED)
+        Hood.setPosition(HoodConstants.HOOD_CLOSE)
+        FlyWheel.setVelocity(0.0)
         Turret.stop()
         Drive.savePose()
     }

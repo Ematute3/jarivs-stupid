@@ -7,6 +7,27 @@ import kotlin.math.*
  * Global Constants for Revival Robot
  */
 
+// ==================== ALLIANCE (SINGLE SOURCE OF TRUTH) ====================
+/**
+ * Shared alliance config. Set once in onInit(), read everywhere.
+ * Eliminates the old pattern of setting Drive.alliance AND Turret.alliance separately.
+ *
+ * Usage:
+ *   AllianceConfig.alliance = AllianceConfig.Alliance.RED  // set once
+ *   AllianceConfig.goalX  // read from Turret, Drive, AutoAim, etc.
+ */
+object AllianceConfig {
+    enum class Alliance { RED, BLUE }
+
+    var alliance = Alliance.BLUE
+
+    val goalX: Double
+        get() = if (alliance == Alliance.RED) FieldConstants.RED_GOAL_X else FieldConstants.BLUE_GOAL_X
+
+    val goalY: Double
+        get() = FieldConstants.GOAL_Y
+}
+
 // ==================== FIELD CONSTANTS ====================
 @Configurable
 object FieldConstants {
@@ -47,7 +68,6 @@ object FieldConstants {
 // ==================== SHOOTER CONSTANTS ====================
 @Configurable
 object ShooterConstants {
-    /** Flywheel velocity presets (ticks/s) */
     const val FLYWHEEL_CLOSE_RPM = 1000.0
     const val FLYWHEEL_MID_RPM = 1500.0
     const val FLYWHEEL_FAR_RPM = 1900.0
@@ -70,8 +90,8 @@ object HoodConstants {
     @JvmField var servoMinPosition = 0.0
     @JvmField var servoMaxPosition = 0.7
 
-    const val DISTANCE_CLOSE_THRESHOLD = 0.862  // meters
-    const val DISTANCE_MID_THRESHOLD = 2.587    // meters
+    const val DISTANCE_CLOSE_THRESHOLD = 0.862
+    const val DISTANCE_MID_THRESHOLD = 2.587
 }
 
 // ==================== INTAKE CONSTANTS ====================
@@ -90,43 +110,9 @@ object GateConstants {
 // ==================== SHOOTING ON THE MOVE ====================
 @Configurable
 object SOTMConstants {
-    /**
-     * SOTM uses a virtual goal to compensate for robot motion during ball flight.
-     *
-     * HOW IT WORKS:
-     * 1. Estimate how long the ball takes to reach the goal (time of flight)
-     * 2. During that time, robot motion causes the ball to drift
-     * 3. Aim at a "virtual goal" offset to cancel that drift
-     *
-     * TIME OF FLIGHT MODEL:
-     *   tof = TOF_BASE + TOF_DISTANCE_SCALE * distanceMeters
-     *
-     *   - TOF_BASE: minimum flight time at point-blank range
-     *   - TOF_DISTANCE_SCALE: additional time per meter of distance
-     *
-     * VELOCITY COMPENSATION:
-     *   virtualGoal = realGoal - robotVelocity * tof
-     *   The subtraction cancels the ball's inherited drift from robot motion.
-     *
-     * TUNING PROCEDURE:
-     *   See SOTM_TUNING_GUIDE.md for step-by-step instructions.
-     */
-
-    // Time of flight model: tof = base + scale * distance
-    // Start conservative, then reduce base until shots land on time
-    @JvmField var TOF_BASE = 0.3           // seconds — minimum flight time (tune first)
-    @JvmField var TOF_DISTANCE_SCALE = 0.2 // seconds per meter — how much longer for far shots
-
-    // Below this speed (inches/sec), use stationary aiming (no virtual goal)
-    // Prevents velocity noise from causing turret jitter when standing still
+    @JvmField var TOF_BASE = 0.3
+    @JvmField var TOF_DISTANCE_SCALE = 0.2
     @JvmField var VELOCITY_THRESHOLD = 6.0
-
-    // Velocity filter alpha (0-1). Higher = more responsive but noisier.
-    // Lower = smoother but more lag. Start at 0.3.
     @JvmField var VELOCITY_ALPHA = 0.3
-
-    // Lead compensation multiplier. 1.0 = physics-perfect lead.
-    // Increase above 1.0 if shots consistently trail behind the target.
-    // Decrease below 1.0 if shots consistently overshoot ahead.
     @JvmField var LEAD_GAIN = 1.0
 }

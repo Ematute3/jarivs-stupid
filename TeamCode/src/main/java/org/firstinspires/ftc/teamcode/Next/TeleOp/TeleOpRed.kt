@@ -11,13 +11,16 @@ import dev.nextftc.extensions.pedro.PedroDriverControlled
 import dev.nextftc.ftc.Gamepads
 import dev.nextftc.ftc.NextFTCOpMode
 import dev.nextftc.ftc.components.BulkReadComponent
+import org.firstinspires.ftc.teamcode.AllianceConfig
+import org.firstinspires.ftc.teamcode.GateConstants
+import org.firstinspires.ftc.teamcode.HoodConstants
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.Lower.Gate.Gate
 import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
 import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.AutoAim.AutoAim
+import org.firstinspires.ftc.teamcode.Next.AutoAim.AutoAim
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
 @TeleOp(name = "TeleOp - Red", group = "Competition")
@@ -39,8 +42,7 @@ class TeleOpRed : NextFTCOpMode() {
     }
 
     override fun onInit() {
-        Turret.alliance = Turret.Alliance.RED
-        Drive.alliance = Drive.Alliance.RED
+        AllianceConfig.alliance = AllianceConfig.Alliance.RED
         Drive.loadSavedPose()
     }
 
@@ -59,7 +61,7 @@ class TeleOpRed : NextFTCOpMode() {
     private fun bindControls() {
         // ========== INTAKE ==========
         Gamepads.gamepad1.rightTrigger.greaterThan(0.1)
-            .whenBecomesTrue(Intake.run)
+            .whenBecomesTrue(Intake.intake)
             .whenBecomesFalse(Intake.stop)
 
         Gamepads.gamepad1.leftTrigger.greaterThan(0.1)
@@ -75,13 +77,15 @@ class TeleOpRed : NextFTCOpMode() {
         Gamepads.gamepad1.dpadUp.whenBecomesTrue {
             AutoAim.disable()
             FlyWheel.setVelocity(midVelocity)
-            Hood.mid()
+            Hood.setPosition(HoodConstants.HOOD_MID)
+            Hood.currentPreset = Hood.HoodPreset.MID
         }
 
         Gamepads.gamepad1.dpadDown.whenBecomesTrue {
             AutoAim.disable()
             FlyWheel.setVelocity(farVelocity)
-            Hood.far()
+            Hood.setPosition(HoodConstants.HOOD_FAR)
+            Hood.currentPreset = Hood.HoodPreset.FAR
         }
 
         // ========== TURRET NUDGE ==========
@@ -115,10 +119,10 @@ class TeleOpRed : NextFTCOpMode() {
 
     override fun onStop() {
         AutoAim.disable()
-        Intake.stop()
-        Gate.close()
-        Hood.close()
-        FlyWheel.stop()
+        Intake.run(0.0)
+        Gate.setPosition(GateConstants.GATE_CLOSED)
+        Hood.setPosition(HoodConstants.HOOD_CLOSE)
+        FlyWheel.setVelocity(0.0)
         Turret.stop()
         Drive.savePose()
     }

@@ -14,6 +14,9 @@ import dev.nextftc.extensions.pedro.PedroComponent
 import dev.nextftc.extensions.pedro.PedroComponent.Companion.follower
 import dev.nextftc.ftc.NextFTCOpMode
 import dev.nextftc.ftc.components.BulkReadComponent
+import org.firstinspires.ftc.teamcode.AllianceConfig
+import org.firstinspires.ftc.teamcode.GateConstants
+import org.firstinspires.ftc.teamcode.HoodConstants
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.Lower.Gate.Gate
 import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
@@ -42,8 +45,7 @@ class AutoRed7 : NextFTCOpMode() {
     private var paths: Array<PathChain> = arrayOf()
 
     override fun onInit() {
-        Turret.alliance = Turret.Alliance.RED
-        Drive.alliance = Drive.Alliance.RED
+        AllianceConfig.alliance = AllianceConfig.Alliance.RED
     }
 
     override fun onStartButtonPressed() {
@@ -144,7 +146,11 @@ class AutoRed7 : NextFTCOpMode() {
     }
 
     override fun onStop() {
-        initCommands.autoStop().schedule()
+        FlyWheel.setVelocity(0.0)
+        Gate.setPosition(GateConstants.GATE_CLOSED)
+        Intake.run(0.0)
+        Hood.setPosition(HoodConstants.HOOD_CLOSE)
+        Turret.stop()
         Drive.savePose()
     }
 }
