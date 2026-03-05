@@ -7,6 +7,7 @@ import com.pedropathing.geometry.Pose
 import com.pedropathing.paths.PathChain
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous
 import dev.nextftc.core.commands.delays.Delay
+import dev.nextftc.core.commands.groups.ParallelRaceGroup
 import dev.nextftc.core.commands.groups.SequentialGroup
 import dev.nextftc.core.components.BindingsComponent
 import dev.nextftc.core.components.SubsystemComponent
@@ -30,7 +31,7 @@ import org.firstinspires.ftc.teamcode.Systems.intakeAuto
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
 @Configurable
-@Autonomous(name = "12-blue-far", group = "Competition", preselectTeleOp = "TeleOp - Blue")
+@Autonomous(name = "Blue-Far", group = "Competition", preselectTeleOp = "TeleOp - Blue")
 class AutoBlue21 : NextFTCOpMode() {
 
     init {
@@ -56,27 +57,31 @@ class AutoBlue21 : NextFTCOpMode() {
         val main = SequentialGroup(
             initCommands.farInit(),
             Delay(1.0),
-            ShooterCommands.shootCommand(1.0),
-
-            FollowPath(paths[0], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
+                ShooterCommands.shootCommand(1.0),
+                    ParallelRaceGroup(
+                   FollowPath(paths[0], true, 1.0),
+                                intakeAuto.autoIntakeNoGate(3.0)
+                    ),
             FollowPath(paths[1], true, 1.0),
-            ShooterCommands.shootCommand(1.0),
-
+                ShooterCommands.shootCommand(1.0),
+                    ParallelRaceGroup(
             FollowPath(paths[2], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
-            FollowPath(paths[3], true, 1.0),
-            ShooterCommands.shootCommand(1.0),
-
+                            intakeAuto.autoIntakeNoGate(2.0)
+                    )
+,           FollowPath(paths[3], true, 1.0),
+                ShooterCommands.shootCommand(1.0),
+                    ParallelRaceGroup(
             FollowPath(paths[4], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
+                            intakeAuto.autoIntakeNoGate(2.0)
+            ),
             FollowPath(paths[5], true, 1.0),
-            ShooterCommands.shootCommand(1.0),
-
+                ShooterCommands.shootCommand(1.0),
+            ParallelRaceGroup(
             FollowPath(paths[6], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
+                            intakeAuto.autoIntakeNoGate(2.0)
+            ),
             FollowPath(paths[7], true, 1.0),
-            ShooterCommands.shootCommand(1.0)
+                ShooterCommands.shootCommand(1.0)
         )
         main.schedule()
     }
@@ -139,6 +144,7 @@ class AutoBlue21 : NextFTCOpMode() {
     }
 
     override fun onUpdate() {
+        Turret.currentState = Turret.State.LOCKED
         telemetry.addData("pose", follower.pose)
         telemetry.update()
     }

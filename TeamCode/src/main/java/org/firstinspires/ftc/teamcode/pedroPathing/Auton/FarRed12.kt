@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Autonomoous.Red
+package org.firstinspires.ftc.teamcode.Autonomoous.Blue
 
 import com.bylazar.configurables.annotations.Configurable
 import com.pedropathing.geometry.BezierCurve
@@ -6,6 +6,8 @@ import com.pedropathing.geometry.BezierLine
 import com.pedropathing.geometry.Pose
 import com.pedropathing.paths.PathChain
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous
+import dev.nextftc.core.commands.delays.Delay
+import dev.nextftc.core.commands.groups.ParallelRaceGroup
 import dev.nextftc.core.commands.groups.SequentialGroup
 import dev.nextftc.core.components.BindingsComponent
 import dev.nextftc.core.components.SubsystemComponent
@@ -29,8 +31,8 @@ import org.firstinspires.ftc.teamcode.Systems.intakeAuto
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
 @Configurable
-@Autonomous(name = "12-Red-Far", group = "Competition", preselectTeleOp = "TeleOp - Red")
-class AutoRed21 : NextFTCOpMode() {
+@Autonomous(name = "Red-Far", group = "Competition", preselectTeleOp = "TeleOp - Blue")
+class AutoBlueMirrored : NextFTCOpMode() {
 
     init {
         addComponents(
@@ -45,98 +47,128 @@ class AutoRed21 : NextFTCOpMode() {
     private var paths: Array<PathChain> = arrayOf()
 
     override fun onInit() {
-        AllianceConfig.alliance = AllianceConfig.Alliance.RED
+        AllianceConfig.alliance = AllianceConfig.Alliance.BLUE
     }
 
     override fun onStartButtonPressed() {
-        follower.setStartingPose(Pose(56.000, 9.000, Math.toRadians(180.0)).mirror())
+        // Starting pose mirrored for Blue Alliance
+        follower.setStartingPose(Pose(20.900, 123.200, Math.toRadians(144.0)).mirror())
         buildPaths()
 
         val main = SequentialGroup(
             initCommands.farInit(),
-            ShooterCommands.shootCommand(1.0),
 
+            // Initial score
             FollowPath(paths[0], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
-            FollowPath(paths[1], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
+            // Cycle 1
+            ParallelRaceGroup(
+                FollowPath(paths[1], true, 1.0),
+                intakeAuto.autoIntakeNoGate(3.0)
+            ),
             FollowPath(paths[2], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
-            FollowPath(paths[3], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
+            // Cycle 2
+            ParallelRaceGroup(
+                FollowPath(paths[3], true, 1.0),
+                intakeAuto.autoIntakeNoGate(2.0)
+            ),
             FollowPath(paths[4], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
-            FollowPath(paths[5], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
+            // Cycle 3
+            ParallelRaceGroup(
+                FollowPath(paths[5], true, 1.0),
+                intakeAuto.autoIntakeNoGate(2.0)
+            ),
             FollowPath(paths[6], true, 1.0),
-            intakeAuto.autoIntakeNoGate(2.0),
-            FollowPath(paths[7], true, 1.0),
-            ShooterCommands.shootCommand(1.0)
+            ShooterCommands.shootCommand(1.0),
+
+            // Final Leave/Park
+            FollowPath(paths[7], true, 1.0)
         )
         main.schedule()
     }
 
     private fun buildPaths() {
-        paths = arrayOf()
-
-        val intakelow = follower.pathBuilder()
-            .addPath(BezierLine(Pose(56.000, 9.000).mirror(), Pose(10.000, 9.000).mirror()))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
+        // Path 0: Initial Score
+        val scorePose0 = follower.pathBuilder()
+            .addPath(BezierLine(Pose(20.900, 123.200).mirror(), Pose(59.200, 84.000).mirror()))
+            .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
             .build()
 
-        val scorePose1 = follower.pathBuilder()
-            .addPath(BezierLine(Pose(10.000, 9.000).mirror(), Pose(56.000, 9.000).mirror()))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
-            .build()
-
-        val intakespike = follower.pathBuilder()
+        // Path 1: Intake 1
+        val intake1 = follower.pathBuilder()
             .addPath(BezierCurve(
-                Pose(56.000, 9.000).mirror(),
-                Pose(44.500, 40.000).mirror(),
-                Pose(13.800, 36.300).mirror()
+                Pose(59.200, 84.000).mirror(),
+                Pose(50.700, 49.200).mirror(),
+                Pose(16.300, 56.400).mirror(),
+                Pose(13.000, 61.700).mirror()
             ))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
+            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(144.0))
             .build()
 
+        // Path 2: Score Pose 1
+        val scorePose1 = follower.pathBuilder()
+            .addPath(BezierCurve(
+                Pose(13.000, 61.700).mirror(),
+                Pose(43.119, 59.491).mirror(),
+                Pose(58.984, 83.732).mirror()
+            ))
+            .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
+            .build()
+
+        // Path 3: Intake 2
+        val intake2 = follower.pathBuilder()
+            .addPath(BezierCurve(
+                Pose(58.984, 83.732).mirror(),
+                Pose(50.900, 49.300).mirror(),
+                Pose(16.200, 56.500).mirror(),
+                Pose(12.086, 59.237).mirror()
+            ))
+            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(144.0))
+            .build()
+
+        // Path 4: Score Pose 2
         val scorePose2 = follower.pathBuilder()
-            .addPath(BezierLine(Pose(13.800, 36.300).mirror(), Pose(56.000, 9.000).mirror()))
+            .addPath(BezierCurve(
+                Pose(12.086, 59.237).mirror(),
+                Pose(43.170, 59.068).mirror(),
+                Pose(59.300, 83.900).mirror()
+            ))
+            .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
+            .build()
+
+        // Path 5: Intake 3
+        val intake3 = follower.pathBuilder()
+            .addPath(BezierLine(Pose(59.300, 83.900).mirror(), Pose(16.702, 83.901).mirror()))
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
             .build()
 
-        val intakehigh = follower.pathBuilder()
-            .addPath(BezierLine(Pose(56.000, 9.000).mirror(), Pose(10.000, 18.500).mirror()))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
-            .build()
-
+        // Path 6: Score Pose 3
         val scorePose3 = follower.pathBuilder()
-            .addPath(BezierLine(Pose(10.000, 18.500).mirror(), Pose(56.000, 9.000).mirror()))
+            .addPath(BezierLine(Pose(16.702, 83.901).mirror(), Pose(59.300, 84.200).mirror()))
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
             .build()
 
-        val intakemid = follower.pathBuilder()
-            .addPath(BezierLine(Pose(56.000, 9.000).mirror(), Pose(10.000, 13.750).mirror()))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
+        // Path 7: Leave
+        val leave = follower.pathBuilder()
+            .addPath(BezierLine(Pose(59.300, 84.200).mirror(), Pose(58.791, 57.837).mirror()))
+            .setTangentHeadingInterpolation()
             .build()
 
-        val scorePose4 = follower.pathBuilder()
-            .addPath(BezierLine(Pose(10.000, 13.750).mirror(), Pose(56.000, 9.000).mirror()))
-            .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
-            .build()
-
-        paths += intakelow
-        paths += scorePose1
-        paths += intakespike
-        paths += scorePose2
-        paths += intakehigh
-        paths += scorePose3
-        paths += intakemid
-        paths += scorePose4
+        paths = arrayOf(
+            scorePose0, intake1, scorePose1,
+            intake2, scorePose2, intake3,
+            scorePose3, leave
+        )
     }
 
     override fun onUpdate() {
+        Turret.currentState = Turret.State.LOCKED
+        telemetry.addData("Pose", follower.pose)
         telemetry.update()
     }
 

@@ -29,7 +29,7 @@ import org.firstinspires.ftc.teamcode.Systems.intakeAuto
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
 @Configurable
-@Autonomous(name = "7-ball Blue", group = "Competition", preselectTeleOp = "TeleOp - Blue")
+@Autonomous(name = "Red-Close", group = "Competition", preselectTeleOp = "TeleOp - Blue")
 class AutoBlue7 : NextFTCOpMode() {
 
     init {

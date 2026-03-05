@@ -1,21 +1,6 @@
-# SOTM Tuning Guide
 
-This guide walks through tuning the unified Shooting-On-The-Move system step by step. Each phase builds on the last — do them in order.
-
----
 
 ## Prerequisites
-
-Before you start SOTM tuning, these must already be working:
-
-- **Pedro pathing localizer** is accurate (test by driving a known distance and checking telemetry).
-- **Flywheel PID** is tuned so the flywheel reliably holds a target velocity. Check `Flywheel/AtTarget` in telemetry.
-- **Turret PID** is tuned so the turret can smoothly track the goal while standing still. It should point at the goal from multiple positions on the field without oscillating.
-- **Hood presets** are calibrated so stationary shots at close, mid, and far range actually go in.
-
-If any of these are flaky, fix them first. SOTM will amplify any underlying problems.
-
----
 
 ## Phase 1: Stationary Baseline
 

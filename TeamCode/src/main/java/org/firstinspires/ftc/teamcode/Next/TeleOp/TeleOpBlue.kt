@@ -90,8 +90,8 @@ class TeleOpBlue : NextFTCOpMode() {
         }
 
         // ========== TURRET NUDGE ==========
-        Gamepads.gamepad1.dpadLeft.whenBecomesTrue { Turret.nudgeLeft() }
-        Gamepads.gamepad1.dpadRight.whenBecomesTrue { Turret.nudgeRight() }
+        Gamepads.gamepad2.dpadLeft.whenBecomesTrue { Turret.nudgeLeft() }
+        Gamepads.gamepad2.dpadRight.whenBecomesTrue { Turret.nudgeRight() }
 
         // ========== AUTO AIM / SOTM TOGGLE ==========
         Gamepads.gamepad1.leftBumper.whenBecomesTrue {
@@ -99,17 +99,17 @@ class TeleOpBlue : NextFTCOpMode() {
         }
 
         // ========== POSE RESET ==========
-        Gamepads.gamepad1.square.whenBecomesTrue {
+        Gamepads.gamepad2.square.whenBecomesTrue {
             follower.pose = Pose(136.0, 8.0, Math.toRadians(180.0))
             Turret.lock()
         }
 
         // ========== TURRET RESET ==========
-        Gamepads.gamepad1.triangle.whenBecomesTrue {
+        Gamepads.gamepad2.triangle.whenBecomesTrue {
             Turret.resetToGoal()
         }
 
-        Gamepads.gamepad1.circle.whenBecomesTrue {
+        Gamepads.gamepad2.circle.whenBecomesTrue {
             Turret.clearOffset()
         }
     }
