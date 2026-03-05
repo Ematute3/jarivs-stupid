@@ -14,7 +14,7 @@ import dev.nextftc.ftc.ActiveOpMode.hardwareMap
 import kotlin.math.round
 
 @Configurable
-object FlyWheel: Subsystem {
+object FlyWheel : Subsystem {
     val topFlywheelMotor: MotorEx = MotorEx("Fly1")
     val bottomFlywheelMotor: MotorEx = MotorEx("Fly2")
     val flywheelMotors: MotorGroup = MotorGroup(topFlywheelMotor, bottomFlywheelMotor)
@@ -30,7 +30,6 @@ object FlyWheel: Subsystem {
     @JvmField var ffKS: Double = 0.0
 
     private const val V_NOMINAL = 12.0
-    const val IDLE_VELOCITY: Double = 0.0
 
     var flywheelTarget: Double = 0.0
 
@@ -40,18 +39,36 @@ object FlyWheel: Subsystem {
     private const val ALPHA_VOLT = 0.3
 
     @JvmField var voltageCompEnabled = true
-
     var usePID = true
+
+    // FIX: PID and FF are now class-level fields so integral term accumulates properly
+    // and we avoid allocating new objects every loop cycle
+    private var pid = PIDController(kP, kI, kD)
+    private var ff = SimpleFeedforward(SimpleFFCoefficients(ffKV, ffKA, ffKS))
+
+    // Track last gains to detect changes from Panels live tuning
+    private var lastKP = kP
+    private var lastKI = kI
+    private var lastKD = kD
+    private var lastFFKV = ffKV
+    private var lastFFKA = ffKA
+    private var lastFFKS = ffKS
 
     fun isAtTarget(): Boolean {
         val rounded = roundToNearest20(flywheelTarget)
         return ((rounded - 20.0) < flywheelMotors.velocity) && ((rounded + 40.0) > flywheelMotors.velocity)
     }
 
-    // FIX: override periodic so NextFTC actually calls this every loop
     override fun periodic() {
-        val pid = PIDController(kP, kI, kD)
-        val ff = SimpleFeedforward(SimpleFFCoefficients(ffKV, ffKA, ffKS))
+        // Only rebuild controllers when gains actually change (live tuning)
+        if (kP != lastKP || kI != lastKI || kD != lastKD) {
+            pid = PIDController(kP, kI, kD)
+            lastKP = kP; lastKI = kI; lastKD = kD
+        }
+        if (ffKV != lastFFKV || ffKA != lastFFKA || ffKS != lastFFKS) {
+            ff = SimpleFeedforward(SimpleFFCoefficients(ffKV, ffKA, ffKS))
+            lastFFKV = ffKV; lastFFKA = ffKA; lastFFKS = ffKS
+        }
 
         val target = roundToNearest20(flywheelTarget)
         val velRaw = flywheelMotors.velocity
@@ -83,8 +100,6 @@ object FlyWheel: Subsystem {
         ActiveOpMode.telemetry.addData("Flywheel/Target", flywheelTarget)
         ActiveOpMode.telemetry.addData("Flywheel/Velocity", topFlywheelMotor.velocity)
         ActiveOpMode.telemetry.addData("Flywheel/AtTarget", if (isAtTarget()) "YES" else "NO")
-        ActiveOpMode.telemetry.addData("Flywheel/kP", "%.4f".format(kP))
-        ActiveOpMode.telemetry.addData("Flywheel/kV", "%.4f".format(ffKV))
     }
 
     fun roundToNearest20(velocity: Double): Double {
@@ -98,6 +113,5 @@ object FlyWheel: Subsystem {
     val close = InstantCommand { setVelocity(1200.0) }
     val mid   = InstantCommand { setVelocity(1500.0) }
     val far   = InstantCommand { setVelocity(1900.0) }
-    val idle  = InstantCommand { setVelocity(IDLE_VELOCITY) }
-    val stop = InstantCommand{setVelocity(0.0)}
+    val stop  = InstantCommand { setVelocity(0.0) }
 }

@@ -1,9 +1,8 @@
-package org.firstinspires.ftc.teamcode.TeleOp
+package org.firstinspires.ftc.teamcode.Next.TeleOp
 
 import com.bylazar.telemetry.PanelsTelemetry
 import com.pedropathing.geometry.Pose
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
-
 import dev.nextftc.core.components.BindingsComponent
 import dev.nextftc.core.components.SubsystemComponent
 import dev.nextftc.extensions.pedro.PedroComponent
@@ -12,17 +11,13 @@ import dev.nextftc.extensions.pedro.PedroDriverControlled
 import dev.nextftc.ftc.Gamepads
 import dev.nextftc.ftc.NextFTCOpMode
 import dev.nextftc.ftc.components.BulkReadComponent
-
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.Lower.Gate.Gate
 import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
-import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.Shooter.Limelight.Limelight
-import org.firstinspires.ftc.teamcode.AutoAim.AutoAim
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
-import org.firstinspires.ftc.teamcode.Next.Shooter.Turret.currentState
-import org.firstinspires.ftc.teamcode.Systems.Command
+import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
+import org.firstinspires.ftc.teamcode.AutoAim.AutoAim
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants
 
 @TeleOp(name = "TeleOp - Red", group = "Competition")
@@ -30,96 +25,111 @@ class TeleOpRed : NextFTCOpMode() {
 
     private val panelsTelemetry = PanelsTelemetry.ftcTelemetry
 
+    private val midVelocity = 1500.0
+    private val farVelocity = 1900.0
+
     init {
         addComponents(
             PedroComponent(Constants::createFollower),
             SubsystemComponent(
-                Drive,
-                Intake,
-                Gate,
-                FlyWheel,
-                Turret,
-                Hood,
-                Limelight,
-                AutoAim
+                Drive, Intake, Gate, FlyWheel, Turret, Hood, AutoAim
             ),
-            BulkReadComponent,
-            BindingsComponent
+            BulkReadComponent, BindingsComponent
         )
     }
 
     override fun onInit() {
         Turret.alliance = Turret.Alliance.RED
-        follower.pose = Command.autoPose
+        Drive.alliance = Drive.Alliance.RED
+        Drive.loadSavedPose()
     }
 
     override fun onStartButtonPressed() {
         PedroDriverControlled(
-            -Gamepads.gamepad1.leftStickY,
-            -Gamepads.gamepad1.leftStickX,
+            Gamepads.gamepad1.leftStickY,
+            Gamepads.gamepad1.leftStickX,
             -Gamepads.gamepad1.rightStickX,
             false
         ).schedule()
+
+        Turret.lock()
         bindControls()
     }
 
-    // Sets follower + Drive state atomically, then re-locks turret
-
     private fun bindControls() {
+        // ========== INTAKE ==========
         Gamepads.gamepad1.rightTrigger.greaterThan(0.1)
             .whenBecomesTrue(Intake.run)
             .whenBecomesFalse(Intake.stop)
 
-        Gamepads.gamepad1.leftTrigger.greaterThan(0.1) whenBecomesTrue(Intake.reverse) whenBecomesFalse(Intake.stop)
+        Gamepads.gamepad1.leftTrigger.greaterThan(0.1)
+            .whenBecomesTrue(Intake.reverse)
+            .whenBecomesFalse(Intake.stop)
 
-        Gamepads.gamepad1.cross whenBecomesTrue Gate.open whenBecomesFalse Gate.close
+        // ========== GATE ==========
+        Gamepads.gamepad1.cross
+            .whenBecomesTrue(Gate.open)
+            .whenBecomesFalse(Gate.close)
 
+        // ========== MANUAL SHOOTING ==========
         Gamepads.gamepad1.dpadUp.whenBecomesTrue {
-            FlyWheel.setVelocity(1500.0).also({ Hood.mid() })
+            AutoAim.disable()
+            FlyWheel.setVelocity(midVelocity)
+            Hood.mid()
         }
 
+        Gamepads.gamepad1.dpadDown.whenBecomesTrue {
+            AutoAim.disable()
+            FlyWheel.setVelocity(farVelocity)
+            Hood.far()
+        }
+
+        // ========== TURRET NUDGE ==========
         Gamepads.gamepad1.dpadLeft.whenBecomesTrue { Turret.nudgeLeft() }
         Gamepads.gamepad1.dpadRight.whenBecomesTrue { Turret.nudgeRight() }
 
-        Gamepads.gamepad1.dpadDown.whenBecomesTrue {
-            FlyWheel.setVelocity(1900.0).also({ Hood.far() })
+        // ========== AUTO AIM / SOTM TOGGLE ==========
+        Gamepads.gamepad1.leftBumper.whenBecomesTrue {
+            AutoAim.toggle()
         }
 
-
-        // Blue side wall: x=144, y=0, heading=180
+        // ========== POSE RESET ==========
         Gamepads.gamepad1.square.whenBecomesTrue {
-           // resetPose(8.0, 8.0, 180.0)
-            follower.pose = Pose(0.0,8.0,180.0).also({ Turret.lock() })
+            follower.pose = Pose(136.0, 8.0, Math.toRadians(0.0))
+            Turret.lock()
         }
-        Gamepads.gamepad1.triangle.whenBecomesTrue{
-            Turret.runResetControl()
+
+        // ========== TURRET RESET ==========
+        Gamepads.gamepad1.triangle.whenBecomesTrue {
+            Turret.resetToGoal()
+        }
+
+        Gamepads.gamepad1.circle.whenBecomesTrue {
+            Turret.clearOffset()
         }
     }
 
     override fun onUpdate() {
-        Drive.update()
-        currentState = Turret.State.LOCKED
         updateTelemetry()
     }
 
     override fun onStop() {
-        Intake.stop
-        Gate.close
-        Hood.close
-        FlyWheel.stop
-
-        currentState = Turret.State.IDLE
+        AutoAim.disable()
+        Intake.stop()
+        Gate.close()
+        Hood.close()
+        FlyWheel.stop()
+        Turret.stop()
+        Drive.savePose()
     }
 
     private fun updateTelemetry() {
-        telemetry.addData("=== BLUE TELEOP ===", "")
-        telemetry.addData("Pose/X", "%.1f".format(Drive.currentX))
-        telemetry.addData("Pose/Y", "%.1f".format(Drive.currentY))
-        telemetry.addData("Pose/Heading", "%.1f°".format(Math.toDegrees(Drive.currentHeading)))
-        telemetry.addData("Hood/Position", "%.2f".format(Hood.currentPosition))
-        telemetry.addData("Hood/Preset", Hood.currentPreset.name)
-        telemetry.addData("Zone", if (Drive.isInShootingZone()) "YES" else "NO")
-
+        telemetry.addData("=== RED TELEOP ===", "")
+        telemetry.addData("Pose", "(%.1f, %.1f) %.1f°".format(
+            Drive.currentX, Drive.currentY, Math.toDegrees(Drive.currentHeading)))
+        telemetry.addData("Speed", "%.1f in/s".format(Drive.speed))
+        telemetry.addData("AutoAim", if (AutoAim.enabled) "ON" else "OFF")
+        telemetry.addData("SOTM Active", if (AutoAim.isSOTMActive) "YES" else "NO")
         telemetry.update()
         panelsTelemetry.update()
     }

@@ -1,1 +1,229 @@
-look at github for instructions
+# SOTM Tuning Guide
+
+This guide walks through tuning the unified Shooting-On-The-Move system step by step. Each phase builds on the last — do them in order.
+
+---
+
+## Prerequisites
+
+Before you start SOTM tuning, these must already be working:
+
+- **Pedro pathing localizer** is accurate (test by driving a known distance and checking telemetry).
+- **Flywheel PID** is tuned so the flywheel reliably holds a target velocity. Check `Flywheel/AtTarget` in telemetry.
+- **Turret PID** is tuned so the turret can smoothly track the goal while standing still. It should point at the goal from multiple positions on the field without oscillating.
+- **Hood presets** are calibrated so stationary shots at close, mid, and far range actually go in.
+
+If any of these are flaky, fix them first. SOTM will amplify any underlying problems.
+
+---
+
+## Phase 1: Stationary Baseline
+
+**Goal:** Confirm the system works perfectly when the robot is not moving.
+
+1. Enable AutoAim (left bumper).
+2. Place the robot at your close, mid, and far shooting positions.
+3. Shoot from each position without moving. Every shot should go in.
+4. Watch telemetry: `AutoAim/SOTM` should read `OFF` while stationary.
+5. Turret should track the goal as you manually rotate the robot in place.
+
+**If shots miss while stationary**, the problem is in your flywheel presets or hood positions, not SOTM. Go back and retune `ShooterConstants` and `HoodConstants` values.
+
+---
+
+## Phase 2: Velocity Filter (VELOCITY_ALPHA)
+
+**Goal:** Make sure velocity readings are smooth but responsive.
+
+**What it does:** `VELOCITY_ALPHA` controls how quickly the filtered velocity reacts to changes in robot speed. Higher values react faster but are noisier. Lower values are smoother but lag behind.
+
+**How to tune:**
+
+1. In Panels, find `SOTMConstants.VELOCITY_ALPHA` (default: 0.3).
+2. Drive the robot at a steady speed and watch `Drive/Speed` in telemetry.
+3. The number should be stable (not jumping around) when driving straight.
+4. Now stop suddenly — the speed should drop to near-zero within 2-3 loops.
+
+**Tuning direction:**
+- If `Drive/Speed` is jittery while driving straight → **decrease** alpha (try 0.2).
+- If `Drive/Speed` takes too long to respond when you start/stop → **increase** alpha (try 0.4).
+- Typical good range: **0.2 to 0.4**.
+
+---
+
+## Phase 3: Velocity Threshold (VELOCITY_THRESHOLD)
+
+**Goal:** Find the boundary between "standing still" and "moving."
+
+**What it does:** Below this speed (in inches/sec), the system aims at the real goal. Above it, the system switches to the virtual goal. This prevents velocity noise from causing turret jitter during stationary shots.
+
+**How to tune:**
+
+1. Stand the robot still and watch `Drive/Speed`. Note the typical noise floor (usually 1-4 in/s).
+2. Set `VELOCITY_THRESHOLD` to about 1.5× that noise floor.
+3. Slowly drive forward. Watch telemetry for `AutoAim/SOTM` switching from `OFF` to `ACTIVE`.
+4. The switch should happen when you're clearly moving, not while drifting or vibrating.
+
+**Tuning direction:**
+- If SOTM activates while sitting still → **increase** threshold.
+- If you have to drive fast before SOTM kicks in → **decrease** threshold.
+- Typical good range: **4.0 to 8.0 in/s**.
+
+---
+
+## Phase 4: Time of Flight (TOF_BASE, TOF_DISTANCE_SCALE)
+
+**Goal:** Model how long the ball takes to reach the goal at each distance.
+
+**What it does:** The time-of-flight determines how far ahead we aim. Too short = undershoot. Too long = overshoot. The model is:
+
+```
+tof = TOF_BASE + TOF_DISTANCE_SCALE * distance_in_meters
+```
+
+**How to measure:**
+
+1. Set up a camera or have a teammate with a stopwatch.
+2. Shoot from **close range** (~0.8m). Time from gate open to ball hitting the target.
+3. Shoot from **far range** (~2.5m). Time from gate open to ball hitting the target.
+4. Do 3-5 shots at each distance and average.
+
+**How to calculate:**
+
+You have two equations:
+```
+tof_close = TOF_BASE + TOF_DISTANCE_SCALE * distance_close
+tof_far   = TOF_BASE + TOF_DISTANCE_SCALE * distance_far
+```
+
+Solve for the two unknowns:
+```
+TOF_DISTANCE_SCALE = (tof_far - tof_close) / (distance_far - distance_close)
+TOF_BASE = tof_close - TOF_DISTANCE_SCALE * distance_close
+```
+
+**Example:**
+- Close: 0.86m, measured 0.45s → tof_close = 0.45
+- Far: 2.59m, measured 0.80s → tof_far = 0.80
+- `TOF_DISTANCE_SCALE = (0.80 - 0.45) / (2.59 - 0.86) = 0.20`
+- `TOF_BASE = 0.45 - 0.20 * 0.86 = 0.28`
+
+Round these and plug them in. You can fine-tune from there.
+
+**If you can't measure precisely**, start with defaults (`TOF_BASE = 0.3`, `TOF_DISTANCE_SCALE = 0.2`) and adjust using the LEAD_GAIN test in Phase 5.
+
+---
+
+## Phase 5: Lead Compensation (LEAD_GAIN)
+
+**Goal:** Fine-tune how much the turret leads the target.
+
+**What it does:** `LEAD_GAIN` multiplies the entire virtual goal offset. At 1.0, the physics model is applied as-is. Above 1.0, the system leads more. Below 1.0, it leads less.
+
+**How to tune:**
+
+1. Set `LEAD_GAIN = 1.0` (default).
+2. Enable AutoAim.
+3. Drive **perpendicular to the goal** (strafe sideways) at a consistent moderate speed.
+4. Shoot while strafing.
+
+**Reading the miss pattern:**
+- **Balls land behind you** (miss in the direction you came from) → The system isn't leading enough. **Increase** `LEAD_GAIN` by 0.1.
+- **Balls land ahead of you** (miss in the direction you're going) → The system leads too much. **Decrease** `LEAD_GAIN` by 0.1.
+- **Balls go in** → You're done with this phase.
+
+**Why this works:** Strafing perpendicular to the goal creates the maximum lateral compensation, making errors in lead most visible. Forward/backward movement mostly just changes distance, which is less sensitive.
+
+**Important:** Tune at mid range first (~1.5m). Close range has short TOF so lead barely matters. Far range amplifies errors and is harder to read.
+
+---
+
+## Phase 6: Integration Test
+
+**Goal:** Verify the full system works in game-like conditions.
+
+### Test 1: Strafe shoot (mid range)
+1. Position at mid range, facing the goal.
+2. Enable AutoAim.
+3. Strafe left while shooting 3 balls. Then strafe right for 3 balls.
+4. Expect 4-5 out of 6 to go in.
+
+### Test 2: Drive-by shoot
+1. Start from far corner.
+2. Enable AutoAim.
+3. Drive diagonally toward/past the mid position while shooting.
+4. Balls should compensate for your forward and lateral motion.
+
+### Test 3: Spin shoot
+1. Position at mid range.
+2. Enable AutoAim.
+3. Rotate the robot in place while shooting.
+4. Turret should track the goal smoothly. (This tests rotation compensation, which was already in the old code.)
+
+### Test 4: Full speed run
+1. Drive at max speed through your typical scoring path.
+2. Shoot at each position.
+3. Watch `AutoAim/TOF` to verify reasonable values (0.3-0.9s range).
+
+---
+
+## Phase 7: Competition Tuning
+
+These are last-minute adjustments for match day.
+
+### Quick check (2 minutes)
+1. Place robot at known position, reset pose (square button).
+2. Enable AutoAim, take 2 shots standing still. Should both go in.
+3. Strafe-shoot 2 shots. Should hit at least 1.
+
+### If shots consistently miss LEFT/RIGHT during SOTM:
+- Adjust `LEAD_GAIN` by ±0.05.
+- Or use turret nudge (dpad left/right) for a quick per-match offset.
+
+### If shots consistently miss SHORT/LONG during SOTM:
+- This means the flywheel interpolation doesn't match reality at the current distance.
+- Use manual presets (dpad up/down) as a fallback for that distance.
+- After the match, adjust `ShooterConstants` preset values.
+
+### If the turret oscillates or jitters while driving:
+- Decrease `VELOCITY_ALPHA` (smoother velocity, more lag).
+- Or increase `VELOCITY_THRESHOLD` (wider stationary deadband).
+- As last resort, decrease turret `kP`.
+
+---
+
+## Constants Reference
+
+| Constant | Location | Default | What it does |
+|---|---|---|---|
+| `TOF_BASE` | SOTMConstants | 0.3 | Minimum ball flight time (seconds) |
+| `TOF_DISTANCE_SCALE` | SOTMConstants | 0.2 | Additional flight time per meter |
+| `VELOCITY_THRESHOLD` | SOTMConstants | 6.0 | Speed below which SOTM disables (in/s) |
+| `VELOCITY_ALPHA` | SOTMConstants | 0.3 | Velocity filter smoothing (0-1) |
+| `LEAD_GAIN` | SOTMConstants | 1.0 | Multiplier on lead compensation |
+| `FLYWHEEL_CLOSE_RPM` | ShooterConstants | 1000 | Flywheel speed at close range |
+| `FLYWHEEL_MID_RPM` | ShooterConstants | 1500 | Flywheel speed at mid range |
+| `FLYWHEEL_FAR_RPM` | ShooterConstants | 1900 | Flywheel speed at far range |
+| `HOOD_CLOSE` | HoodConstants | 0.0 | Hood servo at close range |
+| `HOOD_MID` | HoodConstants | 0.5 | Hood servo at mid range |
+| `HOOD_FAR` | HoodConstants | 0.7 | Hood servo at far range |
+| `DISTANCE_CLOSE_THRESHOLD` | HoodConstants | 0.862 | Close/mid boundary (meters) |
+| `DISTANCE_MID_THRESHOLD` | HoodConstants | 2.587 | Mid/far boundary (meters) |
+
+All `SOTMConstants` values are `@JvmField` and `@Configurable`, so they can be adjusted live in Panels without restarting the OpMode.
+
+---
+
+## Troubleshooting
+
+**"AutoAim/SOTM says ACTIVE but turret doesn't lead"**
+Check that `LEAD_GAIN` is not 0. Check `AutoAim/FieldAngle` — it should differ from a straight line to the real goal when strafing.
+
+**"Turret slams into limits during SOTM"**
+The virtual goal angle plus your nudge offset is exceeding the ±135°/90° physical limits. Try reducing `LEAD_GAIN` or your nudge offset. You may also need to approach the goal from a better angle.
+
+**"Flywheel velocity jumps when SOTM toggles on"**
+Expected — the system switches from your manual preset to the interpolated value for your current distance. If the jump is large, your manual presets don't match the interpolation curve. Adjust `ShooterConstants` values to match what works at each distance.
+
+**"Shots are perfect while strafing but miss while driving forward"**
+Forward motion mostly changes distance, not angle. The flywheel/hood interpolation may not match the real trajectory curve well enough at intermediate distances. Consider adding a 4th calibration point between mid and far, or switching to a polynomial fit if you have the data.
