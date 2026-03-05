@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Autonomoous.Red
+package org.firstinspires.ftc.teamcode.Autonomoous.Blue
 
 import com.bylazar.configurables.annotations.Configurable
 import com.pedropathing.geometry.BezierCurve
@@ -15,14 +15,12 @@ import dev.nextftc.extensions.pedro.PedroComponent
 import dev.nextftc.extensions.pedro.PedroComponent.Companion.follower
 import dev.nextftc.ftc.NextFTCOpMode
 import dev.nextftc.ftc.components.BulkReadComponent
-import org.firstinspires.ftc.robotcore.external.Telemetry
 import org.firstinspires.ftc.teamcode.Lower.Drive.Drive
 import org.firstinspires.ftc.teamcode.Lower.Gate.Gate
 import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
 import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.Systems.Command
 import org.firstinspires.ftc.teamcode.Systems.ShooterCommands
 import org.firstinspires.ftc.teamcode.Systems.initCommands
 import org.firstinspires.ftc.teamcode.Systems.intakeAuto
@@ -46,6 +44,7 @@ class AutoBlue21 : NextFTCOpMode() {
 
     override fun onInit() {
         Turret.alliance = Turret.Alliance.BLUE
+        Drive.alliance = Drive.Alliance.BLUE
     }
 
     override fun onStartButtonPressed() {
@@ -94,13 +93,11 @@ class AutoBlue21 : NextFTCOpMode() {
             .build()
 
         val intakespike = follower.pathBuilder()
-            .addPath(
-                BezierCurve(
-                    Pose(56.000, 9.000),
-                    Pose(44.500, 40.000),
-                    Pose(13.800, 36.300)
-                )
-            )
+            .addPath(BezierCurve(
+                Pose(56.000, 9.000),
+                Pose(44.500, 40.000),
+                Pose(13.800, 36.300)
+            ))
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(180.0))
             .build()
 
@@ -140,14 +137,13 @@ class AutoBlue21 : NextFTCOpMode() {
     }
 
     override fun onUpdate() {
-        Drive.update()
+        // FIX: addData BEFORE update, not after
+        telemetry.addData("pose", follower.pose)
         telemetry.update()
-        telemetry.addData("pose",follower.pose)
     }
 
     override fun onStop() {
         initCommands.autoStop().schedule()
-        Command.resetPose().schedule()
-
+        Drive.savePose()
     }
 }

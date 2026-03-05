@@ -20,7 +20,6 @@ import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
 import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.Systems.Command
 import org.firstinspires.ftc.teamcode.Systems.ShooterCommands
 import org.firstinspires.ftc.teamcode.Systems.initCommands
 import org.firstinspires.ftc.teamcode.Systems.intakeAuto
@@ -44,6 +43,7 @@ class AutoBlue7 : NextFTCOpMode() {
 
     override fun onInit() {
         Turret.alliance = Turret.Alliance.BLUE
+        Drive.alliance = Drive.Alliance.BLUE
     }
 
     override fun onStartButtonPressed() {
@@ -53,23 +53,19 @@ class AutoBlue7 : NextFTCOpMode() {
         val main = SequentialGroup(
             initCommands.farInit(),
 
-            // Drive to score pose, shoot preload
             FollowPath(paths[0], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
-            // intakegate: score pose → gate balls, intake, return, shoot
             FollowPath(paths[1], true, 1.0),
             intakeAuto.autoIntake(2.0),
             FollowPath(paths[2], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
-            // ClearGate: score pose → clear gate, intake, return, shoot
             FollowPath(paths[3], true, 1.0),
             intakeAuto.autoIntake(2.0),
             FollowPath(paths[4], true, 1.0),
             ShooterCommands.shootCommand(1.0),
 
-            // spike1: score pose → spike, intake, return, shoot
             FollowPath(paths[5], true, 1.0),
             intakeAuto.autoIntake(2.0),
             FollowPath(paths[6], true, 1.0),
@@ -81,13 +77,11 @@ class AutoBlue7 : NextFTCOpMode() {
     private fun buildPaths() {
         paths = arrayOf()
 
-        // Path 0: start → score pose
         val scorePose0 = follower.pathBuilder()
             .addPath(BezierLine(Pose(20.900, 123.200), Pose(58.700, 85.000)))
             .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
             .build()
 
-        // Path 1: score pose → gate balls
         val intakegate = follower.pathBuilder()
             .addPath(BezierCurve(
                 Pose(58.700, 85.000),
@@ -98,7 +92,6 @@ class AutoBlue7 : NextFTCOpMode() {
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(144.0))
             .build()
 
-        // Path 2: gate balls → score pose
         val scorePose1 = follower.pathBuilder()
             .addPath(BezierCurve(
                 Pose(10.524, 60.286),
@@ -108,7 +101,6 @@ class AutoBlue7 : NextFTCOpMode() {
             .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
             .build()
 
-        // Path 3: score pose → clear gate
         val clearGate = follower.pathBuilder()
             .addPath(BezierCurve(
                 Pose(58.700, 85.000),
@@ -119,7 +111,6 @@ class AutoBlue7 : NextFTCOpMode() {
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(142.0))
             .build()
 
-        // Path 4: clear gate → score pose
         val scorePose2 = follower.pathBuilder()
             .addPath(BezierCurve(
                 Pose(10.520, 60.280),
@@ -129,13 +120,11 @@ class AutoBlue7 : NextFTCOpMode() {
             .setLinearHeadingInterpolation(Math.toRadians(144.0), Math.toRadians(180.0))
             .build()
 
-        // Path 5: score pose → spike1
         val spike1 = follower.pathBuilder()
             .addPath(BezierLine(Pose(58.700, 85.000), Pose(16.200, 84.400)))
             .setTangentHeadingInterpolation()
             .build()
 
-        // Path 6: spike1 → score pose
         val scorePose3 = follower.pathBuilder()
             .addPath(BezierLine(Pose(16.200, 84.400), Pose(58.700, 85.000)))
             .setLinearHeadingInterpolation(Math.toRadians(180.0), Math.toRadians(90.0))
@@ -151,7 +140,7 @@ class AutoBlue7 : NextFTCOpMode() {
     }
 
     override fun onUpdate() {
-        Drive.update()
+        // Drive.periodic() already calls update() — no need to call it here
         telemetry.update()
     }
 

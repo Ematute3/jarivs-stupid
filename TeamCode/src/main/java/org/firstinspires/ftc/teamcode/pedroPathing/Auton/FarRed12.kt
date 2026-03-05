@@ -20,7 +20,6 @@ import org.firstinspires.ftc.teamcode.Lower.Intake.Intake
 import org.firstinspires.ftc.teamcode.Next.Shooter.FlyWheel
 import org.firstinspires.ftc.teamcode.Next.Shooter.Turret
 import org.firstinspires.ftc.teamcode.Shooter.Hood.Hood
-import org.firstinspires.ftc.teamcode.Systems.Command
 import org.firstinspires.ftc.teamcode.Systems.ShooterCommands
 import org.firstinspires.ftc.teamcode.Systems.initCommands
 import org.firstinspires.ftc.teamcode.Systems.intakeAuto
@@ -44,6 +43,7 @@ class AutoRed21 : NextFTCOpMode() {
 
     override fun onInit() {
         Turret.alliance = Turret.Alliance.RED
+        Drive.alliance = Drive.Alliance.RED
     }
 
     override fun onStartButtonPressed() {
@@ -135,12 +135,11 @@ class AutoRed21 : NextFTCOpMode() {
     }
 
     override fun onUpdate() {
-        Drive.update()
         telemetry.update()
     }
 
     override fun onStop() {
         initCommands.autoStop().schedule()
-        Command.resetPose().schedule()
+        Drive.savePose()
     }
 }
