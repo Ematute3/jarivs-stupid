@@ -172,9 +172,9 @@ class TeleOpBlue : NextFTCOpMode() {
         // ========== POSE RESET ==========
         
         // Square: Reset pose to corner position
-        // Use this if pose gets lost
+        // Heading 180 = facing back/left toward goal on blue side
         Gamepads.gamepad1.square.whenBecomesTrue {
-            follower.pose = Pose(136.0, 8.0, 0.0)
+            follower.pose = Pose(136.0, 8.0, Math.toRadians(180.0))
             Turret.lock()
         }
 
